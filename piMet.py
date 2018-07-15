@@ -7,12 +7,15 @@ from oauth2client.service_account import ServiceAccountCredentials
 # Initialize Google API with scope and credentials from JSON
 scope = ' '.join(['https://www.googleapis.com/auth/drive'])
 credentials = ServiceAccountCredentials.from_json_keyfile_name('PATH_TO_API_JSON.json', scope)
-
 gc = gspread.authorize(credentials)
 worksheet = gc.open_by_url("https://docs.google.com/spreadsheets/URL_TO_SPREADSHEET").sheet1
 
 # Interval in seconds between measurements.
 observationFreq = 15
+
+# Altitude of station in meters
+# Must be accurate for conversions below
+alt = 72
 
 # Start "before loop" timer
 start_time = time.time()
