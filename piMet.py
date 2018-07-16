@@ -29,7 +29,7 @@ print 'Press Ctrl-C to quit.'
 
 # Start main loop
 while True:
-	# If statements here are being testing
+	# If statements here are being TESTED
 	# Not 100% sure if they'll work or not
 	if (time.time() - start_time) > 2700:
 		credentials.refresh(httplib2.Http())
