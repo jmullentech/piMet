@@ -9,6 +9,8 @@ scope = ' '.join(['https://www.googleapis.com/auth/drive'])
 credentials = ServiceAccountCredentials.from_json_keyfile_name('PATH_TO_API_JSON.json', scope)
 gc = gspread.authorize(credentials)
 worksheet = gc.open_by_url("https://docs.google.com/spreadsheets/URL_TO_SPREADSHEET").sheet1
+http = httplib2.Http()
+http = credentials.authorize(http)
 
 # Interval in seconds between measurements.
 observationFreq = 15
@@ -28,9 +30,11 @@ def main():
 
 	# Start main loop
 	while True:
-		if credentials is None or credentials.invalid:
-			credentials.refresh(httplib2.Http())
+		if credentials.access_token is None or credentials.access_token_expired:
 			print("Credentials expired, refreshing...")
+			credentials.refresh(http)
+			gspread.authorize(credentials)
+			print("Refresh SUCCESSFUL!")
 
 		# BMP280 address, 0x77(118)
 		# Read data back from 0x88(136), 24 bytes
