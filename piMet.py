@@ -2,6 +2,7 @@ import smbus
 import time
 import datetime
 import gspread
+import httplib2
 from oauth2client.service_account import ServiceAccountCredentials
 
 # Initialize Google API with scope and credentials from JSON
@@ -9,6 +10,10 @@ scope = ' '.join(['https://www.googleapis.com/auth/drive'])
 credentials = ServiceAccountCredentials.from_json_keyfile_name('PATH_TO_API_JSON.json', scope)
 gc = gspread.authorize(credentials)
 worksheet = gc.open_by_url("https://docs.google.com/spreadsheets/URL_TO_SPREADSHEET").sheet1
+
+# Required for auth method
+http = httplib2.Http()
+http = credentials.authorize(http)
 
 # Interval in seconds between measurements.
 observationFreq = 15
@@ -26,11 +31,15 @@ def main():
 	print 'Logging data every {} seconds.'.format(observationFreq)
 	print 'Press Ctrl-C to quit.'
 
-	# Start main loop
+	# Enter main loop
+	# Check if API creds have expired and refresh as req'd
 	while True:
-		if credentials is None or credentials.invalid:
-			credentials.refresh(httplib2.Http())
+		if credentials.access_token_expired or credentials.access_token is None:
 			print("Credentials expired, refreshing...")
+			credentials.refresh(http)
+			gc.login()
+			print("Refresh SUCCESSFUL!")
+			
 
 		# BMP280 address, 0x77(118)
 		# Read data back from 0x88(136), 24 bytes
@@ -115,6 +124,7 @@ def main():
 		var2 = p * (dig_P8) / 32768.0
 		pressure = (p + (var1 + var2 + (dig_P7)) / 16.0) / 100
 
+		# Adjust station pressure to MSLP
 		# Will expand on this, quick and dirty hack but works for now
 		mslp = (pressure + (alt / 9.2)) * 0.02953
 
@@ -123,15 +133,13 @@ def main():
 		obsdate = time.strftime("%m-%d-%Y")
 		obstime = time.strftime("%H:%M:%S")
 
-		# Output Temp/Press to console for verification
 		print 'Temperature: {0:0.2f} F'.format(fTemp)
 		print 'Pressure:    {0:0.2f} inHg'.format(mslp)
 
 		# Append the data in the spreadsheet, including a timestamp
 		worksheet.append_row((obsdate, obstime, fTemp, mslp))
 
-		# Confirm no error
-		# Wait 'n' seconds before taking next measurement
+		# Wait n seconds before taking next measurement
 		print("Data block pushed to Google Sheets")
 		time.sleep(observationFreq)
 
