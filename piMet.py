@@ -5,44 +5,38 @@ import gspread
 import httplib2
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Initialize Google API with scope and credentials from JSON
-scope = ' '.join(['https://www.googleapis.com/auth/drive'])
-credentials = ServiceAccountCredentials.from_json_keyfile_name('PATH_TO_API_JSON.json', scope)
-gc = gspread.authorize(credentials)
-worksheet = gc.open_by_url("https://docs.google.com/spreadsheets/URL_TO_SPREADSHEET").sheet1
+class piMet:
+		
+	def __init__(self):
 
-# Required for auth method
-http = httplib2.Http()
-http = credentials.authorize(http)
+		# Initialize Google API with scope and credentials from JSON
+		self.scope = ' '.join(['https://www.googleapis.com/auth/drive'])
+		self.credentials = ServiceAccountCredentials.from_json_keyfile_name('PATH_TO_API_JSON.json', self.scope)
+		self.gc = gspread.authorize(self.credentials)
+		self.worksheet = self.gc.open_by_url("https://docs.google.com/spreadsheets/URL_TO_SPREADSHEET").sheet1
 
-# Interval in seconds between measurements.
-observationFreq = 15
+		# Required for auth method
+		self.http = httplib2.Http()
+		self.http = self.credentials.authorize(self.http)
 
-# Altitude of station in meters
-# Must be accurate for conversions below
-alt = 72
+		# Interval in seconds between measurements.
+		self.observationFreq = 15
 
-def main():
+		# Altitude of station in meters
+		# Must be accurate for conversions below
+		self.alt = 72
 
-	# Get I2C bus
-	bus = smbus.SMBus(1)
-
-	# Initalizing console
-	print 'Logging data every {} seconds.'.format(observationFreq)
-	print 'Press Ctrl-C to quit.'
-
-	# Enter main loop
-	# Check if API creds have expired and refresh as req'd
-	while True:
-		if credentials.access_token_expired or credentials.access_token is None:
+	def renegCreds(self):
+		if self.credentials.access_token_expired or self.credentials.access_token is None:
 			print("Credentials expired, refreshing...")
-			credentials.refresh(http)
-			gc.login()
+			self.credentials.refresh(http)
+			self.gc.login()
 			print("Refresh SUCCESSFUL!")
-			
 
-		# BMP280 address, 0x77(118)
-		# Read data back from 0x88(136), 24 bytes
+	def calcs(self):
+
+		# Get I2C bus
+		bus = smbus.SMBus(1)
 		b1 = bus.read_i2c_block_data(0x77, 0x88, 24)
 
 		# Convert the data
@@ -89,9 +83,9 @@ def main():
 		bus.write_byte_data(0x77, 0xF4, 0x27)
 		# BMP280 address, 0x77(118)
 		# Select Configuration register, 0xF5(245)
-		#		0xA0(00)	Stand_by time = 1000 ms
+		#		0xA0(00)	Stand_by time = 100 ms
 		bus.write_byte_data(0x77, 0xF5, 0xA0)
-
+		
 		time.sleep(0.1)
 
 		# BMP280 address, 0x77(118)
@@ -108,8 +102,8 @@ def main():
 		var1 = ((adc_t) / 16384.0 - (dig_T1) / 1024.0) * (dig_T2)
 		var2 = (((adc_t) / 131072.0 - (dig_T1) / 8192.0) * ((adc_t)/131072.0 - (dig_T1)/8192.0)) * (dig_T3)
 		t_fine = (var1 + var2)
-		cTemp = (var1 + var2) / 5120.0
-		fTemp = cTemp * 1.8 + 32
+		self.cTemp = (var1 + var2) / 5120.0
+		self.fTemp = self.cTemp * 1.8 + 32
 
 		# Pressure offset calculations
 		var1 = (t_fine / 2.0) - 64000.0
@@ -122,26 +116,35 @@ def main():
 		p = (p - (var2 / 4096.0)) * 6250.0 / var1
 		var1 = (dig_P9) * p * p / 2147483648.0
 		var2 = p * (dig_P8) / 32768.0
-		pressure = (p + (var1 + var2 + (dig_P7)) / 16.0) / 100
+		self.pressure = (p + (var1 + var2 + (dig_P7)) / 16.0) / 100
 
 		# Adjust station pressure to MSLP
-		# Will expand on this, quick and dirty hack but works for now
-		mslp = (pressure + (alt / 9.2)) * 0.02953
+		self.mslp = (self.pressure + (self.alt / 9.2)) * 0.02953
 
 		# Create observation time/date STRING from datetime object
 		# Fails if you try to parse direct with JSON
-		obsdate = time.strftime("%m-%d-%Y")
-		obstime = time.strftime("%H:%M:%S")
+		self.obsdate = time.strftime("%m-%d-%Y")
+		self.obstime = time.strftime("%H:%M:%S")
 
-		print 'Temperature: {0:0.2f} F'.format(fTemp)
-		print 'Pressure:    {0:0.2f} inHg'.format(mslp)
+	def output(self):
+		# Output to console for verification
+		print 'Time: {}'.format(self.obstime)
+		print 'Temperature: {0:0.2f} F'.format(self.fTemp)
+		print 'Pressure:    {0:0.2f} inHg'.format(self.mslp)
 
 		# Append the data in the spreadsheet, including a timestamp
-		worksheet.append_row((obsdate, obstime, fTemp, mslp))
+		self.worksheet.append_row((self.obsdate, self.obstime, self.fTemp, self.mslp))
 
 		# Wait n seconds before taking next measurement
 		print("Data block pushed to Google Sheets")
-		time.sleep(observationFreq)
+		time.sleep(self.observationFreq)
 
-if __name__ == "__main__":
-	main()
+	def runall(self):
+		while True:
+			runall.calcs()
+			runall.output()
+			runall.renegCreds()
+
+# Run it all
+runall = piMet()
+runall.runall()
