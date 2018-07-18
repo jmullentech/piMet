@@ -29,7 +29,7 @@ class piMet:
 	def renegCreds(self):
 		if self.credentials.access_token_expired or self.credentials.access_token is None:
 			print("Credentials expired, refreshing...")
-			self.credentials.refresh(http)
+			self.credentials.refresh(self.http)
 			self.gc.login()
 			print("Refresh SUCCESSFUL!")
 
