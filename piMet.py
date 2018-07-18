@@ -92,13 +92,14 @@ class piMet:
 		# Read data back from 0xF7(247), 8 bytes
 		# Pressure MSB, Pressure LSB, Pressure xLSB, Temperature MSB, Temperature LSB
 		# Temperature xLSB, Humidity MSB, Humidity LSB
-		data = bus.read_i2c_block_data(0x77, 0xF7, 8)
-
-		# Convert pressure and temperature data to 19-bits
-		self.adc_p = ((data[0] * 65536) + (data[1] * 256) + (data[2] & 0xF0)) / 16
-		self.adc_t = ((data[3] * 65536) + (data[4] * 256) + (data[5] & 0xF0)) / 16
+		self.data = bus.read_i2c_block_data(0x77, 0xF7, 8)
 
 	def calcs(self):
+
+		# Convert pressure and temperature data to 19-bits
+		self.adc_p = ((self.data[0] * 65536) + (self.data[1] * 256) + (self.data[2] & 0xF0)) / 16
+		self.adc_t = ((self.data[3] * 65536) + (self.data[4] * 256) + (self.data[5] & 0xF0)) / 16
+
 		# Temperature offset calculations
 		var1 = ((self.adc_t) / 16384.0 - (self.dig_T1) / 1024.0) * (self.dig_T2)
 		var2 = (((self.adc_t) / 131072.0 - (self.dig_T1) / 8192.0) * ((self.adc_t)/131072.0 - (self.dig_T1)/8192.0)) * (self.dig_T3)
